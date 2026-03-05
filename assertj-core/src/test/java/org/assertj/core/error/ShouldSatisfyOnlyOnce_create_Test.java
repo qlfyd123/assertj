@@ -15,47 +15,73 @@
  */
 package org.assertj.core.error;
 
-import static java.lang.String.format;
+import static java.util.List.of;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.BDDAssertions.then;
 import static org.assertj.core.error.ShouldSatisfyOnlyOnce.shouldSatisfyOnlyOnce;
 import static org.assertj.core.presentation.StandardRepresentation.STANDARD_REPRESENTATION;
+import static org.assertj.core.testkit.TestData.someInfo;
 
-import org.assertj.core.description.Description;
+import java.util.List;
+import java.util.Map;
+
+import org.assertj.core.api.AssertionInfo;
 import org.assertj.core.description.TextDescription;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 /**
- * Tests for <code>{@link ShouldSatisfyOnlyOnce#create(Description)}</code>.
+ * Tests for <code>{@link ShouldSatisfyOnlyOnce#create(org.assertj.core.description.Description)}</code>.
  */
 class ShouldSatisfyOnlyOnce_create_Test {
 
+  private static final AssertionInfo INFO = someInfo();
+
+  @SuppressWarnings("ConstantConditions")
   @Test
   void should_create_error_message_when_no_elements_were_satisfied() {
     // GIVEN
-    ErrorMessageFactory factory = shouldSatisfyOnlyOnce(List.of("Luke", "Leia", "Yoda"), List.of());
+    List<String> actual = of("Luke", "Leia");
+    Map<Integer, UnsatisfiedRequirement> unsatisfiedRequirements = Map.of(
+                                                                          0, unsatisfiedRequirement("Luke", "Vader"),
+                                                                          1, unsatisfiedRequirement("Leia", "Vader"));
+    ErrorMessageFactory factory = shouldSatisfyOnlyOnce(actual, of(), unsatisfiedRequirements, INFO);
     // WHEN
     String message = factory.create(new TextDescription("Test"), STANDARD_REPRESENTATION);
     // THEN
-    then(message).isEqualTo(format("[Test] %n" +
-                                   "Expecting exactly one element of actual:%n" +
-                                   "  [\"Luke\", \"Leia\", \"Yoda\"]%n" +
-                                   "to satisfy the requirements but none did"));
+    // compare with string because of stacktrace
+    then(message).contains("Expecting exactly one element of actual:",
+                           "[\"Luke\", \"Leia\"]",
+                           "to satisfy the requirements but none did:",
+                           "\"Luke\"", "- element index: 0", "expected: \"Vader\"", "but was: \"Luke\"",
+                           "\"Leia\"", "- element index: 1", "expected: \"Vader\"", "but was: \"Leia\"");
   }
 
+  @SuppressWarnings("ConstantConditions")
   @Test
   void should_create_error_message_when_more_than_one_element_was_satisfied() {
     // GIVEN
-    ErrorMessageFactory factory = shouldSatisfyOnlyOnce(List.of("Luke", "Leia", "Yoda"), List.of("Luke", "Leia"));
+    List<String> actual = of("Luke", "Leia", "Yoda");
+    Map<Integer, UnsatisfiedRequirement> unsatisfiedRequirements = Map.of(
+                                                                          2, unsatisfiedRequirement("Yoda", "Luke"));
+    ErrorMessageFactory factory = shouldSatisfyOnlyOnce(actual, of("Luke", "Leia"), unsatisfiedRequirements, INFO);
     // WHEN
     String message = factory.create(new TextDescription("Test"), STANDARD_REPRESENTATION);
     // THEN
-    then(message).isEqualTo(format("[Test] %n" +
-                                   "Expecting exactly one element of actual:%n" +
-                                   "  [\"Luke\", \"Leia\", \"Yoda\"]%n" +
-                                   "to satisfy the requirements but these 2 elements did:%n" +
-                                   "  [\"Luke\", \"Leia\"]"));
+    // compare with string because of stacktrace
+    then(message).contains("Expecting exactly one element of actual:",
+                           "[\"Luke\", \"Leia\", \"Yoda\"]",
+                           "to satisfy the requirements but these 2 elements did:",
+                           "[\"Luke\", \"Leia\"]",
+                           "\"Yoda\"", "- element index: 2", "expected: \"Luke\"", "but was: \"Yoda\"");
+  }
+
+  private UnsatisfiedRequirement unsatisfiedRequirement(Object element, Object expected) {
+    try {
+      assertThat(element).isEqualTo(expected);
+      return null; // Should not happen
+    } catch (AssertionError e) {
+      return new UnsatisfiedRequirement(element, e);
+    }
   }
 
 }
