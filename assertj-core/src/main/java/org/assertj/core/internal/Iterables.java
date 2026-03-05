@@ -95,6 +95,7 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -1239,10 +1240,21 @@ public class Iterables {
   public <E> void assertSatisfiesOnlyOnce(AssertionInfo info, Iterable<? extends E> actual, Consumer<? super E> requirements) {
     assertNotNull(info, actual);
     requireNonNull(requirements, "The Consumer<? super E> expressing the requirements must not be null");
-    List<? extends E> satisfiedElements = stream(actual).filter(byPassingAssertions(requirements))
-                                                        .collect(toList());
+    Map<Integer, UnsatisfiedRequirement> unsatisfiedElements = new LinkedHashMap<>();
+    List<E> satisfiedElements = new ArrayList<>();
+    int index = 0;
+    for (E element : actual) {
+      try {
+        requirements.accept(element);
+        satisfiedElements.add(element);
+      } catch (AssertionError e) {
+        unsatisfiedElements.put(index, new UnsatisfiedRequirement(element, e));
+      }
+      index++;
+    }
+
     if (satisfiedElements.size() != 1) {
-      throw failures.failure(info, shouldSatisfyOnlyOnce(actual, satisfiedElements));
+      throw failures.failure(info, shouldSatisfyOnlyOnce(actual, satisfiedElements, unsatisfiedElements, info));
     }
   }
 
