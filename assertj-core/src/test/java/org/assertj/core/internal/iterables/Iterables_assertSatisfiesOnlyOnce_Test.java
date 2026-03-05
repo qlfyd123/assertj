@@ -22,10 +22,13 @@ import static org.assertj.core.error.ShouldSatisfyOnlyOnce.shouldSatisfyOnlyOnce
 import static org.assertj.core.util.AssertionsUtil.expectAssertionError;
 import static org.assertj.core.util.FailureMessages.actualIsNull;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import org.assertj.core.api.AssertionInfo;
+import org.assertj.core.error.UnsatisfiedRequirement;
 import org.assertj.core.internal.Iterables;
 import org.assertj.core.internal.IterablesBaseTest;
 import org.junit.jupiter.api.Test;
@@ -51,7 +54,14 @@ class Iterables_assertSatisfiesOnlyOnce_Test extends IterablesBaseTest {
     // WHEN
     var assertionError = expectAssertionError(() -> iterables.assertSatisfiesOnlyOnce(INFO, actual, REQUIREMENTS));
     // THEN
-    then(assertionError).hasMessage(shouldSatisfyOnlyOnce(actual, List.of("Luke", "Luke")).create());
+    // compare with string because of stacktrace
+    then(assertionError).hasMessageContaining("Expecting exactly one element of actual:")
+                        .hasMessageContaining("[\"Luke\", \"Yoda\", \"Leia\", \"Luke\"]")
+                        .hasMessageContaining("to satisfy the requirements but these 2 elements did:")
+                        .hasMessageContaining("[\"Luke\", \"Luke\"]")
+                        .message()
+                        .contains("\"Yoda\"", "- element index: 1", "expected: \"Luke\"", "but was: \"Yoda\"")
+                        .contains("\"Leia\"", "- element index: 2", "expected: \"Luke\"", "but was: \"Leia\"");
   }
 
   @Test
@@ -61,17 +71,25 @@ class Iterables_assertSatisfiesOnlyOnce_Test extends IterablesBaseTest {
     // WHEN
     var assertionError = expectAssertionError(() -> iterables.assertSatisfiesOnlyOnce(INFO, actual, requirements));
     // THEN
-    then(assertionError).hasMessage(shouldSatisfyOnlyOnce(actual, List.of()).create());
+    // compare with string because of stacktrace
+    then(assertionError).hasMessageContaining("Expecting exactly one element of actual:")
+                        .hasMessageContaining("[\"Luke\", \"Yoda\", \"Leia\"]")
+                        .hasMessageContaining("to satisfy the requirements but none did:")
+                        .message()
+                        .contains("\"Luke\"", "- element index: 0", "expected: \"Vader\"", "but was: \"Luke\"")
+                        .contains("\"Yoda\"", "- element index: 1", "expected: \"Vader\"", "but was: \"Yoda\"")
+                        .contains("\"Leia\"", "- element index: 2", "expected: \"Vader\"", "but was: \"Leia\"");
   }
 
   @Test
   void should_fail_if_actual_is_empty() {
     // GIVEN
     actual = List.of();
+    Map<Integer, UnsatisfiedRequirement> unsatisfiedRequirements = new LinkedHashMap<>();
     // WHEN
     var assertionError = expectAssertionError(() -> iterables.assertSatisfiesOnlyOnce(INFO, actual, REQUIREMENTS));
     // THEN
-    then(assertionError).hasMessage(shouldSatisfyOnlyOnce(List.of(), List.of()).create());
+    then(assertionError).hasMessage(shouldSatisfyOnlyOnce(List.of(), List.of(), unsatisfiedRequirements, INFO).create());
   }
 
   @Test
