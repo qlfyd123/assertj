@@ -51,34 +51,29 @@ class Iterables_assertSatisfiesOnlyOnce_Test extends IterablesBaseTest {
   void should_fail_if_more_than_once_actual_elements_satisfy_the_requirements() {
     // GIVEN
     actual.add("Luke");
+    Map<Integer, UnsatisfiedRequirement> unsatisfiedRequirementMap = new LinkedHashMap<>();
+    unsatisfiedRequirementMap.put(1, unsatisfiedRequirement("Yoda", REQUIREMENTS));
+    unsatisfiedRequirementMap.put(2, unsatisfiedRequirement("Leia", REQUIREMENTS));
     // WHEN
     var assertionError = expectAssertionError(() -> iterables.assertSatisfiesOnlyOnce(INFO, actual, REQUIREMENTS));
     // THEN
-    // compare with string because of stacktrace
-    then(assertionError).hasMessageContaining("Expecting exactly one element of actual:")
-                        .hasMessageContaining("[\"Luke\", \"Yoda\", \"Leia\", \"Luke\"]")
-                        .hasMessageContaining("to satisfy the requirements but these 2 elements did:")
-                        .hasMessageContaining("[\"Luke\", \"Luke\"]")
-                        .message()
-                        .contains("\"Yoda\"", "- element index: 1", "expected: \"Luke\"", "but was: \"Yoda\"")
-                        .contains("\"Leia\"", "- element index: 2", "expected: \"Luke\"", "but was: \"Leia\"");
+    String expected = shouldSatisfyOnlyOnce(actual, List.of("Luke", "Luke"), unsatisfiedRequirementMap, INFO).create();
+    then(normalizeMessage(assertionError.getMessage())).isEqualToNormalizingWhitespace(normalizeMessage(expected));
   }
 
   @Test
   void should_fail_if_no_actual_elements_satisfy_the_requirements() {
     // GIVEN
     Consumer<String> requirements = value -> assertThat(value).isEqualTo("Vader");
+    Map<Integer, UnsatisfiedRequirement> unsatisfiedRequirementMap = new LinkedHashMap<>();
+    unsatisfiedRequirementMap.put(0, unsatisfiedRequirement("Luke", requirements));
+    unsatisfiedRequirementMap.put(1, unsatisfiedRequirement("Yoda", requirements));
+    unsatisfiedRequirementMap.put(2, unsatisfiedRequirement("Leia", requirements));
     // WHEN
     var assertionError = expectAssertionError(() -> iterables.assertSatisfiesOnlyOnce(INFO, actual, requirements));
     // THEN
-    // compare with string because of stacktrace
-    then(assertionError).hasMessageContaining("Expecting exactly one element of actual:")
-                        .hasMessageContaining("[\"Luke\", \"Yoda\", \"Leia\"]")
-                        .hasMessageContaining("to satisfy the requirements but none did:")
-                        .message()
-                        .contains("\"Luke\"", "- element index: 0", "expected: \"Vader\"", "but was: \"Luke\"")
-                        .contains("\"Yoda\"", "- element index: 1", "expected: \"Vader\"", "but was: \"Yoda\"")
-                        .contains("\"Leia\"", "- element index: 2", "expected: \"Vader\"", "but was: \"Leia\"");
+    String expected = shouldSatisfyOnlyOnce(actual, List.of(), unsatisfiedRequirementMap, INFO).create();
+    then(normalizeMessage(assertionError.getMessage())).isEqualToNormalizingWhitespace(normalizeMessage(expected));
   }
 
   @Test
@@ -109,6 +104,21 @@ class Iterables_assertSatisfiesOnlyOnce_Test extends IterablesBaseTest {
     // WHEN/THEN
     assertThatNullPointerException().isThrownBy(() -> iterables.assertSatisfiesOnlyOnce(INFO, actual, requirements))
                                     .withMessage("The Consumer<? super E> expressing the requirements must not be null");
+  }
+
+  private UnsatisfiedRequirement unsatisfiedRequirement(String element, Consumer<String> requirements) {
+    try {
+      requirements.accept(element);
+      return null; // Should not happen
+    } catch (AssertionError e) {
+      return new UnsatisfiedRequirement(element, e);
+    }
+  }
+
+  // remove stacktrace for test
+  private String normalizeMessage(String message) {
+    return message.replaceAll("(?m)^\\t.*(?:\\r?\\n)?", "")
+                  .replaceAll("- error: .*?(?=\\r?\\n)", "- error:");
   }
 
 }

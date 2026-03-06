@@ -42,31 +42,32 @@ class ShouldSatisfyOnlyOnce_create_Test {
   void should_create_error_message_when_no_elements_were_satisfied() {
     // GIVEN
     List<String> actual = of("Luke", "Leia");
-    UnsatisfiedRequirement lukeRequirement = unsatisfiedRequirement("Luke", "Vader");
-    UnsatisfiedRequirement leiaRequirement = unsatisfiedRequirement("Leia", "Vader");
     Map<Integer, UnsatisfiedRequirement> unsatisfiedRequirements = new LinkedHashMap<>();
-    unsatisfiedRequirements.put(0, lukeRequirement);
-    unsatisfiedRequirements.put(1, leiaRequirement);
+    unsatisfiedRequirements.put(0, unsatisfiedRequirement("Luke", "Vader"));
+    unsatisfiedRequirements.put(1, unsatisfiedRequirement("Leia", "Vader"));
     ErrorMessageFactory factory = shouldSatisfyOnlyOnce(actual, of(), unsatisfiedRequirements, INFO);
     // WHEN
     String message = factory.create(new TextDescription("Test"), STANDARD_REPRESENTATION);
     // THEN
-    String expected = String.format("[Test] %n" +
-                                    "Expecting exactly one element of actual:%n" +
-                                    "  [\"Luke\", \"Leia\"]%n" +
-                                    "to satisfy the requirements but none did:%n" +
-                                    "%n" +
-                                    "\"Luke\"%n" +
-                                    "- element index: 0%n" +
-                                    "- error:%n" +
-                                    "expected: \"Vader\"%n" +
-                                    " but was: \"Luke\"%n" +
-                                    "%n" +
-                                    "\"Leia\"%n" +
-                                    "- element index: 1%n" +
-                                    "- error:%n" +
-                                    "expected: \"Vader\"%n" +
-                                    " but was: \"Leia\"");
+    // compare with string because of stacktrace
+    String expected = """
+        [Test]
+        Expecting exactly one element of actual:
+          ["Luke", "Leia"]
+        to satisfy the requirements but none did:
+
+        "Luke"
+        - element index: 0
+        - error:
+        expected: "Vader"
+         but was: "Luke"
+
+        "Leia"
+        - element index: 1
+        - error:
+        expected: "Vader"
+         but was: "Leia"
+        """;
     then(normalizeMessage(message)).isEqualToNormalizingWhitespace(expected);
   }
 
@@ -75,23 +76,25 @@ class ShouldSatisfyOnlyOnce_create_Test {
   void should_create_error_message_when_more_than_one_element_was_satisfied() {
     // GIVEN
     List<String> actual = of("Luke", "Leia", "Yoda");
-    UnsatisfiedRequirement yodaRequirement = unsatisfiedRequirement("Yoda", "Luke");
-    Map<Integer, UnsatisfiedRequirement> unsatisfiedRequirements = Map.of(2, yodaRequirement);
+    Map<Integer, UnsatisfiedRequirement> unsatisfiedRequirements = Map.of(2, unsatisfiedRequirement("Yoda", "Luke"));
     ErrorMessageFactory factory = shouldSatisfyOnlyOnce(actual, of("Luke", "Leia"), unsatisfiedRequirements, INFO);
     // WHEN
     String message = factory.create(new TextDescription("Test"), STANDARD_REPRESENTATION);
     // THEN
-    String expected = String.format("[Test] %n" +
-                                    "Expecting exactly one element of actual:%n" +
-                                    "  [\"Luke\", \"Leia\", \"Yoda\"]%n" +
-                                    "to satisfy the requirements but these 2 elements did:%n" +
-                                    "  [\"Luke\", \"Leia\"]%n" +
-                                    "%n" +
-                                    "\"Yoda\"%n" +
-                                    "- element index: 2%n" +
-                                    "- error:%n" +
-                                    "expected: \"Luke\"%n" +
-                                    " but was: \"Yoda\"");
+    // compare with string because of stacktrace
+    String expected = """
+        [Test]
+        Expecting exactly one element of actual:
+          ["Luke", "Leia", "Yoda"]
+        to satisfy the requirements but these 2 elements did:
+          ["Luke", "Leia"]
+
+          "Yoda"
+        - element index: 2
+        - error:
+        expected: "Luke"
+         but was: "Yoda"
+        """;
     then(normalizeMessage(message)).isEqualToNormalizingWhitespace(expected);
   }
 
@@ -107,7 +110,7 @@ class ShouldSatisfyOnlyOnce_create_Test {
   // remove stacktrace for test
   private String normalizeMessage(String message) {
     return message.replaceAll("(?m)^\\t.*(?:\\r?\\n)?", "")
-      .replaceAll("- error: .*?(?=\\r?\\n)", "- error:");
+                  .replaceAll("- error: .*?(?=\\r?\\n)", "- error:");
   }
 
 }
